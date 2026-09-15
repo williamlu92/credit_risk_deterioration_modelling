@@ -1,0 +1,22 @@
+# Local data is intentionally excluded from version control.
+data/
+*.csv
+*.csv.gz
+
+# Jupyter and Python-generated files.
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# LaTeX build files.
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# macOS files.
+.DS_Store
+
