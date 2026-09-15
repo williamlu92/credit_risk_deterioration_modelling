@@ -77,15 +77,14 @@
   {\color{Gold}\rule{0.42\textwidth}{1.2pt}}\\[2.5em]
   \begin{minipage}{0.80\textwidth}
     \large
-    This report explains the current stage of the project. It
-    follows the project from data preparation and model design through
-    validation, probability calibration, expected loss, and the construction of
-    an emerging-risk watchlist. The system is an evolving research prototype,
-    and the closing checklist defines the next development cycle.
+    This report summarizes the current credit risk model. It covers the data,
+    model design, validation results, probability calibration, expected loss,
+    and the emerging-risk watchlist. The final section lists the work still
+    required before operational use.
   \end{minipage}
   \vfill
   {\large Technical project report\par}
-  {\color{Muted}10 August 2026\par}
+  {\color{Muted}14 September 2026\par}
   \vspace{0.55in}
 \end{titlepage}
 \clearpage
@@ -95,15 +94,11 @@
 \section*{Technical summary}
 \addcontentsline{toc}{section}{Technical summary}
 
-This project builds a credit risk early warning system that reframes default
-prediction as a time-sensitive deterioration problem. Instead of only
-classifying loans as default or non-default, the system estimates probability of
-default over several time horizons, identifies borrowers whose predicted risk is
-accelerating, and translates those probabilities into expected loss. The goal is
-an operating view that can place loans into categories such as Healthy,
-Watchlist, and High Risk while ultimately explaining the borrower-level drivers
-behind each score. The current analysis establishes that foundation and also
-makes clear what remains before operational use.
+This project estimates default risk over 12-, 24-, and 36-month horizons. It also
+identifies loans whose risk increases over time and converts predicted default
+risk into expected loss. These outputs support three monitoring groups: Healthy,
+Watchlist, and High Risk. The model is a research prototype and is not ready for
+production decisions.
 
 \begin{itemize}
   \item \textbf{The baseline ranking is useful.} A logistic regression trained on
@@ -119,10 +114,9 @@ makes clear what remains before operational use.
 
   \item \textbf{Gradient boosting adds little discrimination.} Categorical-aware
   histogram gradient boosting increased ROC-AUC from 0.7295 to 0.7314 and average
-  precision from 0.4067 to 0.4078. That is a real but operationally small gain.
-  Both models remain
-  under-calibrated at the high-risk end, suggesting that cohort shift and
-  probability calibration matter more than additional nonlinear flexibility.
+  precision from 0.4067 to 0.4078. The gain is too small to justify the more
+  complex model on performance alone. Both models still underpredict default in
+  the highest-risk groups.
 
   \item \textbf{Longer-term loans carry disproportionate risk.} In the resolved
   2015 test cohort, 60-month loans represented 34\% of exposure but 53\% of the
@@ -140,19 +134,17 @@ makes clear what remains before operational use.
   cumulative probabilities by construction, although its event timing remains
   approximate.
 
-  \item \textbf{The operating layer is now explicit but still scenario-based.}
-  A configurable economic review rule combines predicted loss, a 15\% assumed
-  intervention effect, a \$50 review cost, and 20\% review capacity. Under those
-  illustrative assumptions it selects 84,149 loans and produces \$40.5 million
-  of scenario net benefit; this is a decision prototype, not a deployment claim.
+  \item \textbf{The watchlist economics are illustrative.} A review rule combines
+  predicted loss, a 15\% assumed intervention effect, a \$50 review cost, and 20\%
+  review capacity. It selects 84,149 loans and estimates \$40.5 million of net
+  benefit under those assumptions. The estimate is not validated for deployment.
 \end{itemize}
 
-\textbf{Bottom line.} The current system supports risk ranking, horizon-aware
-monitoring, and an initial translation from risk to action. It is not finished:
-the scores should not yet be treated as production probabilities for pricing,
-capital, or accounting. The next iterations should improve event timing, add
-dynamic borrower signals, validate probability and state transitions across
-vintages, and replace illustrative operating assumptions with policy-owned inputs.
+\textbf{Bottom line.} The model can rank loans for review and show when risk may
+emerge. Its probabilities are not accurate enough for pricing, capital, or
+accounting. Before production use, the project needs better event dates,
+post-origination borrower data, validation across multiple vintages, and approved
+economic assumptions.
 
 \tableofcontents
 \newpage
@@ -188,10 +180,10 @@ the time. Average precision focuses more directly on the rare positive class. A
 value of 0.406 against a 0.202 base rate indicates that the score concentrates
 defaults near the top of the ranking about twice as effectively as random order.
 
-The model's quintiles make that distinction concrete. The highest-risk fifth of
-the test set defaulted at 42.3\%, while the lowest-risk fifth defaulted at 5.5\%.
-The ratio is roughly 7.7 to 1. This is meaningful separation for screening and
-prioritization.
+The highest-risk fifth of the test set defaulted at 42.3\%, while the lowest-risk
+fifth defaulted at 5.5\%. The highest-risk group therefore defaulted about 7.7
+times as often. This shows that the score can separate loans for screening and
+review prioritization.
 
 \subsection{Calibration, rather than ranking, is the immediate weakness}
 
@@ -214,12 +206,11 @@ as risk increases. Logistic regression predicts 34.4\% in its highest band, wher
 The original nonlinear benchmark closes only 0.9 percentage points of the
 high-band gap.
 
-This distinction matters. A model may rank borrowers well enough to decide whom to
-review first while still producing probabilities that are too low for pricing or
-loss estimation. The out-of-time base rate rose from 17.0\% in the training cohort
-to 20.2\% in the 2015 test cohort, a shift of 3.16 percentage points. That change
-is consistent with the observed underprediction and motivates explicit
-recalibration on a more recent, fully observed validation cohort.
+The model ranks loans better than it estimates absolute default probability. It
+may support review prioritization, but its probabilities are too low for pricing
+or loss estimation. The default rate increased from 17.0\% in training to 20.2\%
+in the 2015 test cohort. This 3.16 percentage-point shift helps explain the
+underprediction and shows why recent calibration data is needed.
 
 The corrected extension implements this temporal calibration design: the model
 is fitted through 2013, calibrated on 2014, and evaluated on 2015. Calibration
@@ -237,25 +228,21 @@ continuous numeric order. Even so, its improvement is only 0.0019 in ROC-AUC and
 0.0010 in average precision. On this feature set, complexity alone does not change
 the conclusion.
 
-This result should be interpreted carefully. It suggests that the available
-origination variables already carry most of the ranking information exploited by
-these two specifications. It does \emph{not} prove that any particular variables
-are causal drivers, nor that interactions are unimportant. The notebook does not
-include coefficient analysis, permutation importance, SHAP values, or an ablation
-study of every individual feature. The new ablation does, however, separate broad
-information sources: lender-assigned fields alone reach ROC-AUC 0.710, borrower
-and loan fields alone reach 0.716, and the full corrected model reaches 0.729.
-This suggests that the system adds information beyond LendingClub's grade and
-pricing while still benefiting from those existing underwriting signals.
+The small performance difference shows that gradient boosting adds little value
+with the available origination variables. This does not show which variables
+cause default, and the notebook does not report coefficients, permutation
+importance, SHAP values, or individual-feature ablations. The broad ablation does
+show that lender-assigned fields alone reach ROC-AUC 0.710, borrower and loan
+fields alone reach 0.716, and the full model reaches 0.729. The full model gains
+information from both sources.
 
 \section{Term, grade, and cohort composition concentrate risk}
 
 \subsection{Longer terms are riskier, but the resolved-loan sample is selective}
 
-The observed default rate is consistently higher for 60-month loans than for
-36-month loans in the resolved-outcome data, as shown in
-Figure~\ref{fig:year-term}. The gap is economically important because longer-term
-loans also tend to remain exposed for longer.
+Figure~\ref{fig:year-term} shows that resolved 60-month loans default more often
+than resolved 36-month loans. Longer-term loans also remain exposed for more time,
+so they require separate monitoring.
 
 \begin{figure}[H]
   \centering
@@ -289,9 +276,9 @@ Term & Loans & Exposure & Predicted PD & Observed default & ROC-AUC & Avg. preci
 }
 \end{table}
 
-The exposure comparison is striking: the 60-month segment has about half as much
-exposure as the 36-month segment, yet slightly more modelled expected loss. That is
-why term belongs in portfolio segmentation and monitoring.
+The 60-month segment has about half the exposure of the 36-month segment but
+slightly more modelled expected loss. This shows that loan term should be included
+in portfolio segmentation and monitoring.
 
 However, this finding is also where sample construction matters most. Among all
 421,095 loans issued in 2015, almost every 36-month loan had resolved by the data
@@ -315,28 +302,23 @@ Under the report's illustrative loss assumptions, expected-loss rate rises from
   \label{fig:grade}
 \end{figure}
 
-The widening gap between predicted and observed risk in grades D through G echoes
-the quintile calibration result. This is operationally significant: an
-underestimate in the tail matters more than the same absolute error in a low-risk
-band because exposure, review intensity, and loss provisions are often
-concentrated there.
+For grades D through G, observed default is increasingly higher than predicted
+default. This matters because review effort and expected losses are concentrated
+in these higher-risk grades.
 
-The grade result also changes how the model should be described. Grade, sub-grade,
-and interest rate are outputs of LendingClub's own underwriting process. Including
-them makes the model useful as a portfolio-risk benchmark built on the lender's
-origination decisions, but less suitable as an independent underwriting model.
-The completed ablation quantifies this distinction: borrower and loan fields alone
-produce ROC-AUC 0.716, compared with 0.710 for lender-assigned fields alone and
-0.729 for the full corrected model.
+Grade, sub-grade, and interest rate come from LendingClub's underwriting process.
+Including them supports portfolio monitoring but makes the model less independent
+as an underwriting tool. Borrower and loan fields alone produce ROC-AUC 0.716,
+compared with 0.710 for lender-assigned fields alone and 0.729 for the full model.
+This shows that both sources improve the full model.
 
 \section{Horizon models reveal when risk emerges}
 
 \subsection{Near-term risk is easier to rank from origination information}
 
-The second modelling stage reframes the target. Rather than asking whether a loan
-ever ends in default, three models estimate cumulative default risk within 12, 24,
-and 36 months. The 12-month model has the highest ROC-AUC and the greatest
-average-precision lift relative to its own default-rate baseline.
+Three models estimate cumulative default risk within 12, 24, and 36 months rather
+than whether a loan ever defaults. The 12-month model has the highest ROC-AUC and
+the greatest average-precision lift relative to its default-rate baseline.
 
 \begin{table}[H]
 \centering
@@ -376,11 +358,9 @@ holds at 12 and 24 months.
   \label{fig:horizon-bands}
 \end{figure}
 
-This result is more useful than a single lifetime score because it separates two
-questions that often call for different actions: which loans are risky now, and
-which loans are likely to deteriorate over a longer window? The former can drive
-immediate review; the latter can drive monitoring frequency, early-warning rules,
-and scenario analysis.
+The horizon scores answer two separate questions: which loans are risky now, and
+which may become risky later? Near-term risk can trigger immediate review.
+Longer-term risk can determine monitoring frequency and early-warning alerts.
 
 \subsection{Risk acceleration identifies delayed deterioration}
 
@@ -397,11 +377,9 @@ larger predicted increases also have markedly higher realized 36-month default.
   \label{fig:acceleration}
 \end{figure}
 
-The monotonic pattern gives the acceleration concept empirical support. Observed
-36-month default rises from 5.4\% in the lowest acceleration quintile to 32.5\%
-in the highest. The statistic is still predictive rather than causal: it is a way
-of arranging loans by the shape of their modelled risk curve, not evidence that a
-particular feature causes later deterioration.
+Observed 36-month default rises from 5.4\% in the lowest acceleration quintile to
+32.5\% in the highest. This shows that risk acceleration identifies loans with
+higher later default risk. It does not show what causes that deterioration.
 
 \section{A horizon-aware watchlist turns scores into an operating view}
 
@@ -434,25 +412,20 @@ Normal monitoring & 333,466 & 79.26\% & 3.40\% & 11.89\% & 4.16\% & 13.45\% & \$
 \end{table}
 
 The emerging-risk group is small, only 0.74\% of the cohort, but its realized
-36-month default rate is almost twice the normal-monitoring rate. Its immediate
-default rate is much lower than the high-immediate-risk group, which is exactly the
-pattern the rule is intended to find: risk that is not extreme at 12 months but
-becomes material by 36 months.
+36-month default rate is almost twice the normal-monitoring rate. Its 12-month
+default rate is much lower than the high-immediate-risk group. This shows that the
+rule finds loans whose risk becomes material later rather than immediately.
 
-The table also illustrates a classic portfolio lesson. Normal monitoring contains
-most loans and therefore accounts for about 60\% of total modelled 36-month loss
-dollars, even though its per-loan risk is lower. A watchlist is useful for review
-and prioritization, but it does not replace portfolio-wide loss estimation.
+Normal monitoring contains 79.3\% of loans and about 60\% of total modelled
+36-month expected loss. This shows that the watchlist can prioritize reviews, but
+it cannot replace portfolio-wide loss measurement.
 
-These three descriptive categories are still defined by percentile rules, so
-their meanings can drift as the portfolio changes. The corrected notebook adds a
-separate economic overlay that ranks loans by expected loss avoided minus review
-cost and selects positive-value cases within a capacity constraint. Under the
-illustrative assumptions in the technical summary, the selected 20\% of loans
-have a 29.6\% realized 36-month default rate and \$2.005 billion of exposure.
-The framework is useful because its assumptions are visible and configurable;
-deployment still requires review capacity, intervention effectiveness, cost, and
-risk appetite to be estimated and owned by the business.
+The three monitoring groups use percentile cutoffs, so the thresholds will change
+with the portfolio. The notebook also tests an economic rule based on expected
+loss avoided, review cost, and review capacity. Under the example assumptions, it
+selects 20\% of loans. Those loans have a 29.6\% observed 36-month default rate and
+\$2.005 billion of exposure. Before using this rule, the business must approve the
+review capacity, intervention effect, cost, and risk appetite assumptions.
 
 \section{What was modelled and which loans were eligible}
 
@@ -521,9 +494,9 @@ standardizes numeric variables and one-hot encodes categories. Employment length
 has the largest missing share at 5.83\%; other selected fields are nearly complete,
 with revolving utilization missing in 0.067\% and debt-to-income ratio in 0.028\%.
 
-All preprocessing is held inside a scikit-learn pipeline, so imputation and
-encoding are learned on training data and then applied to the test set. This is an
-important protection against preprocessing leakage.
+The scikit-learn pipeline learns imputation and encoding from the training data
+and then applies them to the test data. This prevents test information from
+entering preprocessing.
 
 \subsection{Eligibility for the horizon targets}
 
@@ -547,9 +520,9 @@ Horizon & All eligible rows & Overall default rate & Eligible 2015 test rows \\
 \end{tabular}
 \end{table}
 
-As the horizon lengthens, fewer loans have adequate observation and more have had
-time to default. This changing denominator is why performance and default rates
-must be interpreted separately for each horizon.
+Longer horizons include fewer eligible loans because more follow-up is required.
+They also include more defaults because loans have more time to fail. Results must
+therefore be compared within each horizon's eligible population.
 
 \section{How the modelling stages were built}
 
@@ -572,10 +545,9 @@ default $L_2$ regularization:
     + \lambda\lVert\beta\rVert_2^2.
 \]
 
-The model is attractive because its output is a probability and its structure is
-transparent. Its main restriction is additivity in log-odds. Without explicit
-interaction terms, it cannot easily represent a combination whose joint effect is
-much stronger than the sum of its parts.
+Logistic regression produces probabilities and has a transparent structure. It
+assumes effects are additive in log-odds. Without explicit interaction terms, it
+may miss combinations whose joint effect is stronger than the sum of their parts.
 
 \subsection{Histogram gradient boosting as the nonlinear comparison}
 
@@ -606,10 +578,9 @@ stricter three-way split: fitting through 2013, probability calibration on 2014,
 and final evaluation on 2015. Both designs reveal temporal drift because the test
 cohort has a higher resolved-outcome default rate than the earlier cohorts.
 
-The notebook does not tune hyperparameters through cross-validation. The reported
-results are therefore a direct benchmark comparison, not an optimized model
-selection exercise. This restraint is useful for interpretation, but uncertainty
-around the metric differences is not quantified.
+The notebook does not tune hyperparameters through cross-validation. The results
+compare benchmark models rather than optimized candidates, and the uncertainty
+around the small metric differences is not quantified.
 
 \section{How performance, timing, and expected loss were measured}
 
@@ -684,10 +655,9 @@ interval $t$ for a loan still at risk, cumulative probability is
 This construction makes cumulative PD monotone without post-processing and keeps
 unresolved loans until censoring. The benchmark is trained through 2013,
 calibrated on 2014 interval hazards, and evaluated on the common 2015 cohort. Its
-12-, 24-, and 36-month ROC-AUC values are 0.676, 0.668, and 0.666; the lower
-ranking performance is the cost of a more realistic, but still approximate,
-event-time formulation and provides a useful sensitivity check rather than a new
-champion model.
+12-, 24-, and 36-month ROC-AUC values are 0.676, 0.668, and 0.666. The benchmark
+ranks loans less accurately than the separate horizon models. It is a sensitivity
+check, not the preferred model.
 
 \subsection{Expected loss translation}
 
@@ -701,16 +671,14 @@ the original loan amount. For the resolved 2015 lifetime cohort, this gives
 \$607.3 million of modelled expected loss on \$5.499 billion of original exposure,
 or 11.05\%.
 
-This translation is valuable because it puts model output in monetary terms. It
-is also deliberately simplified. Actual EAD changes with amortization and
-prepayment; LGD varies with recoveries, collateral, costs, and time; and a full
-accounting or capital calculation would incorporate discounting, scenario weights,
-and policy definitions.
+Expected loss puts the model output in monetary terms, but this calculation is
+simplified. Actual EAD changes with amortization and prepayment. LGD changes with
+recoveries, collateral, costs, and time. Accounting or capital use would also
+require discounting, scenario weights, and policy definitions.
 
 \section{What the results do not yet establish}
 
-The project is directionally strong, but several limitations materially affect
-how its numbers should be used.
+The following limitations restrict how the results can be used.
 
 \begin{enumerate}
   \item \textbf{Resolved-outcome selection is the main limitation of the lifetime
@@ -769,15 +737,14 @@ how its numbers should be used.
 The raw population counts, status definitions, temporal cohort sizes, and horizon
 label rates in the notebook were independently reproduced from the supplied source
 file. Model-performance values in this report come from the corrected notebook's
-stored outputs. That notebook was executed end to end in a fresh kernel: all 72
-code cells completed and no error outputs remained.
+stored outputs. The notebook was executed end to end in a fresh kernel: all 71
+non-empty code cells completed and no error outputs remained.
 
 \section{Working checklist for the next iteration}
 
-The project is unfinished. The following checklist keeps future work anchored to
-the early-warning objective rather than to model complexity for its own sake. The
-phases are ordered deliberately: later modelling and operating decisions depend
-on the data and event definitions established first.
+The following work is required before production use. The order matters because
+later modelling and operating decisions depend on reliable data and event
+definitions.
 
 \subsection*{Phase 1: Establish the data and target foundation}
 
